@@ -24,8 +24,9 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./
 
-# Backend
+# Backend + shared data (server imports from src/data/)
 COPY server ./server
+COPY src/data ./src/data
 
 # Built frontend
 COPY --from=build /app/dist ./dist
