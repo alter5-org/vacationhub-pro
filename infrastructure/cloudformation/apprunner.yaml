@@ -81,6 +81,8 @@ Resources:
   # ============================================================
   AppRunnerService:
     Type: AWS::AppRunner::Service
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       ServiceName: !Sub 'vacationhub-${Environment}'
       SourceConfiguration:

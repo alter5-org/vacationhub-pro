@@ -69,7 +69,7 @@ PARAMS=(
   "VpcId=${VPC_ID}"
   "SubnetIds=${SUBNET_IDS}"
   "SecurityGroupIds=${SG_ID}"
-  "AppUrl="
+  "AppUrl=https://vacaciones.alter5.com"
   "AppSecretArn=${SECRET_ARN}"
 )
 
