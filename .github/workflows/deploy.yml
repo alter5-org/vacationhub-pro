@@ -11,9 +11,11 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'Dockerfile'
+      - '.dockerignore'
       - 'vite.config.js'
       - 'tailwind.config.js'
       - 'index.html'
+      - '.github/workflows/deploy.yml'
 
 env:
   AWS_REGION: eu-west-1
@@ -26,6 +28,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Build Docker image
+        run: |
+          docker build -t vacationhub-test:latest .
+
+      - name: Smoke test - container starts and health check passes
+        run: |
+          docker run -d --name smoke-test -p 8080:8080 \
+            -e PORT=8080 -e NODE_ENV=production \
+            -e JWT_SECRET=test-secret \
+            vacationhub-test:latest
+          echo "Waiting for container to start..."
+          sleep 5
+          if ! docker ps --filter "name=smoke-test" --filter "status=running" -q | grep -q .; then
+            echo "Container failed to start. Logs:"
+            docker logs smoke-test
+            exit 1
+          fi
+          # Hit the health endpoint
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health || true)
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "Health check failed (HTTP $HTTP_STATUS). Logs:"
+            docker logs smoke-test
+            exit 1
+          fi
+          echo "Health check passed (HTTP $HTTP_STATUS)"
+          docker stop smoke-test && docker rm smoke-test
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -37,29 +66,10 @@ jobs:
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build Docker image
+      - name: Tag and push Docker image to ECR
         run: |
           IMAGE_URI=${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPO }}
-          docker build -t $IMAGE_URI:latest -t $IMAGE_URI:${{ github.sha }} .
-          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
-
-      - name: Smoke test - container starts and listens
-        run: |
-          docker run -d --name smoke-test -p 8080:8080 \
-            -e PORT=8080 -e NODE_ENV=test \
-            -e JWT_SECRET=test-secret \
-            ${{ env.IMAGE_URI }}:latest
-          echo "Waiting for container to start..."
-          sleep 5
-          if ! docker ps --filter "name=smoke-test" --filter "status=running" -q | grep -q .; then
-            echo "Container failed to start. Logs:"
-            docker logs smoke-test
-            exit 1
-          fi
-          echo "Container is running successfully"
-          docker stop smoke-test && docker rm smoke-test
-
-      - name: Push Docker image to ECR
-        run: |
-          docker push ${{ env.IMAGE_URI }}:latest
-          docker push ${{ env.IMAGE_URI }}:${{ github.sha }}
+          docker tag vacationhub-test:latest $IMAGE_URI:latest
+          docker tag vacationhub-test:latest $IMAGE_URI:${{ github.sha }}
+          docker push $IMAGE_URI:latest
+          docker push $IMAGE_URI:${{ github.sha }}
