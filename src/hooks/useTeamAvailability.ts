@@ -23,9 +23,9 @@ export const useTeamAvailability = (deptId: string | undefined | null) => {
         return today >= start && today <= end
       })
 
-      const nextVacation = memberRequests.find(
-        (r) => new Date(r.startDate) > today
-      )
+      const nextVacation = memberRequests
+        .filter((r) => new Date(r.startDate) > today)
+        .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())[0]
 
       return { ...member, onVacation, nextVacation }
     })
