@@ -13,7 +13,7 @@ import type { Employee } from '@/domain/types'
 
 interface EmployeeContextValue {
   employees: Employee[]
-  addEmployee: (employeeData: Omit<Employee, 'id'>) => Employee
+  addEmployee: (employeeData: Omit<Employee, 'id'>) => void
   updateEmployee: (id: string, updates: Partial<Employee>) => void
   deleteEmployee: (id: string) => void
   promoteToAdmin: (id: string) => void
@@ -46,16 +46,10 @@ export function EmployeeProvider({ children }: { children: ReactNode }) {
   }, [user?.token])
 
   const addEmployee = useCallback(
-    (employeeData: Omit<Employee, 'id'>): Employee => {
+    (employeeData: Omit<Employee, 'id'>): void => {
       if (!user?.token) {
         toast.error('Necesitas iniciar sesión para agregar empleados')
-        throw new Error('Missing auth token')
-      }
-
-      const newEmployee: Employee = {
-        id: `tmp-${Date.now()}`,
-        ...employeeData,
-        role: employeeData.role || 'employee',
+        return
       }
 
       fetch('/api/employees', {
@@ -82,8 +76,6 @@ export function EmployeeProvider({ children }: { children: ReactNode }) {
           console.error('Error creating employee:', error)
           toast.error('No se pudo crear el empleado')
         })
-
-      return newEmployee
     },
     [toast, user?.token]
   )
