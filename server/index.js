@@ -15,10 +15,20 @@ import { seedVacations } from './seedVacations.js'
 const app = express()
 app.set('trust proxy', 1)
 
-app.use(cors())
+const allowedOrigins = [
+  'https://vacaciones.alter5.com',
+  'http://localhost:5173',
+]
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true)
+    if (allowedOrigins.includes(origin)) return cb(null, true)
+    if (/\.vercel\.app$/.test(new URL(origin).hostname)) return cb(null, true)
+    return cb(new Error('Not allowed by CORS'))
+  },
+}))
 app.use(express.json())
 
-// Health check for App Runner
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' })
 })
@@ -47,21 +57,6 @@ testConnection().then(async (connected) => {
       }
     } catch (error) {
       console.error('Error comprobando precarga histórica:', error)
-    }
-    // En Railway, ejecutar migración automáticamente si es necesario
-    if (process.env.RAILWAY_ENVIRONMENT) {
-      try {
-        const result = await query('SELECT COUNT(*) FROM users')
-        if (result.rows[0].count === '0') {
-          console.log('⚠️ Database empty, running migration...')
-          // Ejecutar migración en background
-          import('./railwayMigrate.js').catch(err => {
-            console.error('Migration error:', err)
-          })
-        }
-      } catch (error) {
-        // Ignorar errores de migración automática
-      }
     }
   } else {
     console.log('⚠️ Database not available, using in-memory data')

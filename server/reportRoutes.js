@@ -1,10 +1,19 @@
 import express from 'express'
+import rateLimit from 'express-rate-limit'
 import { authenticateJWT } from './authMiddleware.js'
 import { POLICIES } from '../src/data/absenceTypes.js'
 import { calculateBalance, getDepartmentStats } from './reportUtils.js'
 import { query } from './database.js'
 
 export const reportRouter = express.Router()
+
+const reportLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Demasiadas peticiones. Intenta en un minuto.' },
+})
 
 function requireAdmin(req, res, next) {
   if (req.user?.role !== 'admin') {
@@ -48,7 +57,7 @@ async function getReportData(year) {
   }
 }
 
-reportRouter.get('/departments', authenticateJWT, requireAdmin, (req, res) => {
+reportRouter.get('/departments', reportLimiter, authenticateJWT, requireAdmin, (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear()
 
   getReportData(year)
@@ -72,7 +81,7 @@ reportRouter.get('/departments', authenticateJWT, requireAdmin, (req, res) => {
     })
 })
 
-reportRouter.get('/employees', authenticateJWT, requireAdmin, (req, res) => {
+reportRouter.get('/employees', reportLimiter, authenticateJWT, requireAdmin, (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear()
 
   getReportData(year)

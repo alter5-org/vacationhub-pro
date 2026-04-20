@@ -51,3 +51,4 @@ Thumbs.db
 # Infrastructure secrets (never commit with real values)
 infrastructure/cloudformation/populate-secrets.sh
 
+.vercel

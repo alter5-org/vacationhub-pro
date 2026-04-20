@@ -43,12 +43,18 @@ Monolithic app: React frontend + Express 5 backend in one repo, deployed as a si
 
 ## Deployment
 
-- **AWS App Runner** (eu-west-1) with VPC connector to Aurora
-- **Aurora Serverless v2** PostgreSQL
-- **CI/CD**: Push to `main` → GitHub Actions builds Docker image → pushes to ECR → App Runner auto-deploys
-- **Secrets**: AWS Secrets Manager (`vacationhub-secrets-prod`) — DATABASE_URL, JWT_SECRET, SMTP_*
-- **CloudFormation**: `infrastructure/cloudformation/` — `data.yaml` (Aurora), `apprunner.yaml` (App Runner)
-- **Domain**: vacaciones.alter5.com
+- **Frontend**: Vercel project `vacationhub-prov2` (team `javiers-projects-fd4e06c4`). Domain `vacaciones.alter5.com`. DNS CNAME in Cloudflare → `cname.vercel-dns.com` (DNS only).
+- **Backend**: Render web service `vacationhub-backend` (`vacationhub-backend.onrender.com`). `/api/*` is rewritten from Vercel to Render via `vercel.json`.
+- **Database**: PostgreSQL (via `pg`). `DATABASE_URL` is set in Render env vars. Schema in `server/schema.sql`, apply with `npm run migrate`.
+- **Email**: Resend (primary, `RESEND_API_KEY`) or SMTP fallback (`SMTP_*`).
+- **Scheduler**: `server/reminderScheduler.js` runs hourly via `node-cron`. ⚠️ If Render is on the free tier, the service spins down after 15 minutes of inactivity and the scheduler stops until the next request wakes it — upgrade to a paid plan or move the scheduler to an external cron (e.g. GitHub Actions) for reliability.
+
+### Deploy flow
+Intended: push to `main` on `alter5-org/vacationhub-pro` → Vercel auto-deploys the SPA, Render auto-deploys the backend.
+Today (2026-04-20): the Vercel GitHub App in `alter5-org` has lost repo permissions, so Vercel does not auto-deploy. Until an org owner reinstalls the Vercel GitHub App, deploy the frontend manually with `cd <repo> && npx vercel --prod` (the project is already linked locally via `.vercel/`).
+
+### Legacy / deprecated
+- AWS App Runner service (`5dedar3xke.eu-west-1.awsapprunner.com`) + Aurora + CloudFormation + ECR pipeline (`.github/workflows/deploy.yml`) are deprecated. App Runner is still alive but cannot reach a working DB, so login fails with 503. Do not restore DNS to App Runner. Pending: decommission the AWS stack.
 
 ## Testing
 

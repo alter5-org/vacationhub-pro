@@ -137,7 +137,7 @@ authRouter.post('/change-password', authenticateJWT, async (req, res) => {
         currentPasswordValid = await bcrypt.compare(currentPassword, hashedPassword)
       }
     }
-    
+
     if (!currentPasswordValid) {
       return res
         .status(401)
@@ -160,7 +160,7 @@ authRouter.post('/change-password', authenticateJWT, async (req, res) => {
     } else {
       updatePassword(userEmail, newPasswordHash)
     }
-    
+
     return res.json({
       success: true,
       message: 'Contraseña actualizada correctamente',
@@ -215,11 +215,11 @@ authRouter.post('/forgot-password', passwordResetLimiter, async (req, res) => {
         const token = useDatabase
           ? await resetTokenRepo.createResetToken(user.email)
           : await createResetTokenMem(user.email)
-        
+
         const appUrl = process.env.APP_URL || 'http://localhost:5173'
         // Use root + query params to avoid SPA deep-link 404s on some hosts
         const resetLink = `${appUrl}/?reset=1&email=${encodeURIComponent(user.email)}&token=${token}`
-        
+
         const emailTemplate = getPasswordResetEmailTemplate({
           employeeName: user.name,
           resetLink,
@@ -273,7 +273,7 @@ authRouter.post('/reset-password', passwordResetLimiter, async (req, res) => {
 
   try {
     const emailLower = email.toLowerCase()
-    
+
     // Verify token
     let tokenValid
     if (useDatabase) {
@@ -315,7 +315,7 @@ authRouter.post('/reset-password', passwordResetLimiter, async (req, res) => {
       updatePassword(emailLower, newPasswordHash)
       deleteResetTokenMem(emailLower)
     }
-    
+
     return res.json({
       success: true,
       message: 'Contraseña restablecida correctamente',
