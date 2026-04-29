@@ -17,6 +17,10 @@ const baseRequests: VacationRequest[] = [
     days: 5,
     startDate: '2025-01-10',
     endDate: '2025-01-14',
+    requestDate: '2025-01-01',
+    reason: '',
+    type: 'vacation',
+    backup: null,
   },
   {
     id: 'r2',
@@ -26,6 +30,10 @@ const baseRequests: VacationRequest[] = [
     days: 3,
     startDate: '2025-03-10',
     endDate: '2025-03-12',
+    requestDate: '2025-03-01',
+    reason: '',
+    type: 'vacation',
+    backup: null,
   },
 ]
 
@@ -54,6 +62,74 @@ describe('calculations', () => {
     expect(stats.usagePercent).toBeGreaterThanOrEqual(0)
   })
 
+  it('non-deducting absence types (remote/sick/medical) do NOT reduce vacation balance', () => {
+    const remoteRequest: VacationRequest = {
+      id: 'remote-1',
+      employeeId: 'e1',
+      year: 2025,
+      status: 'pending',
+      days: 1,
+      startDate: '2025-04-30',
+      endDate: '2025-04-30',
+      requestDate: '2025-04-15',
+      reason: 'Teletrabajo',
+      type: 'remote',
+      backup: null,
+    }
+    const balance = calc.calculateBalance('e1', 2025, [remoteRequest], '2025-01-01')
+    expect(balance.pending).toBe(0)
+    expect(balance.used).toBe(0)
+    expect(balance.available).toBe(balance.total)
+  })
+
+  it('mixes deducting and non-deducting requests correctly', () => {
+    const requests: VacationRequest[] = [
+      {
+        id: 'vac-1',
+        employeeId: 'e1',
+        year: 2025,
+        status: 'approved',
+        days: 5,
+        startDate: '2025-08-01',
+        endDate: '2025-08-05',
+        requestDate: '2025-07-01',
+        reason: '',
+        type: 'vacation',
+        backup: null,
+      },
+      {
+        id: 'remote-1',
+        employeeId: 'e1',
+        year: 2025,
+        status: 'pending',
+        days: 3,
+        startDate: '2025-09-01',
+        endDate: '2025-09-03',
+        requestDate: '2025-08-15',
+        reason: '',
+        type: 'remote',
+        backup: null,
+      },
+      {
+        id: 'sick-1',
+        employeeId: 'e1',
+        year: 2025,
+        status: 'approved',
+        days: 2,
+        startDate: '2025-03-10',
+        endDate: '2025-03-11',
+        requestDate: '2025-03-10',
+        reason: '',
+        type: 'sick',
+        backup: null,
+      },
+    ]
+    const balance = calc.calculateBalance('e1', 2025, requests, '2025-01-01')
+    expect(balance.used).toBe(5)
+    expect(balance.pending).toBe(0)
+    expect(balance.available).toBe(balance.total - 5)
+  })
+
   it('applies carry-over from previous year', () => {
     const requests: VacationRequest[] = [
       {
@@ -64,6 +140,10 @@ describe('calculations', () => {
         days: 10,
         startDate: '2025-06-01',
         endDate: '2025-06-10',
+        requestDate: '2025-05-15',
+        reason: '',
+        type: 'vacation',
+        backup: null,
       },
     ]
     const balance = calc.calculateBalance('e1', 2026, requests, '2024-01-01')

@@ -1,10 +1,16 @@
 /**
- * Script de migración inicial
+ * Migración inicial / idempotente.
  * Ejecutar con: node server/migrate.js
- * 
- * Este script:
- * 1. Crea las tablas si no existen
- * 2. Inserta datos iniciales (departamentos, usuarios, etc.)
+ *
+ * Pasos:
+ * 1. Verifica conexión
+ * 2. Aplica schema.sql (CREATE TABLE IF NOT EXISTS)
+ * 3. Aplica migraciones one-shot idempotentes:
+ *    - users.password_hash → DROP COLUMN IF EXISTS  (auth migrada a magic-link)
+ *    - password_reset_tokens → RENAME TO login_tokens
+ *    - login_tokens.used_at → ADD COLUMN IF NOT EXISTS
+ *    - índices login_tokens (idx_login_tokens_*)
+ * 4. Siembra departamentos y usuarios canónicos
  */
 
 import 'dotenv/config'
@@ -12,99 +18,96 @@ import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { query, testConnection } from './database.js'
-import { USERS, HASHED_CREDENTIALS } from './authData.js'
+import { SEED_USERS } from './seedUsers.js'
 import { DEPARTMENTS } from '../src/data/employees.js'
-import bcrypt from 'bcrypt'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
+async function applyOneShotMigrations() {
+  // users.password_hash: ya no se usa (magic-link). Drop si existe.
+  await query('ALTER TABLE users DROP COLUMN IF EXISTS password_hash')
+
+  // password_reset_tokens → login_tokens (rename idempotente).
+  await query(`
+    DO $$
+    BEGIN
+      IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'password_reset_tokens')
+         AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'login_tokens') THEN
+        ALTER TABLE password_reset_tokens RENAME TO login_tokens;
+      END IF;
+    END$$;
+  `)
+
+  // Asegura columna used_at + índices con nuevos nombres.
+  await query('ALTER TABLE login_tokens ADD COLUMN IF NOT EXISTS used_at TIMESTAMP')
+  await query('DROP INDEX IF EXISTS idx_reset_tokens_email')
+  await query('DROP INDEX IF EXISTS idx_reset_tokens_token')
+  await query('DROP INDEX IF EXISTS idx_reset_tokens_expires')
+  await query('CREATE INDEX IF NOT EXISTS idx_login_tokens_email ON login_tokens(email)')
+  await query('CREATE INDEX IF NOT EXISTS idx_login_tokens_token ON login_tokens(token)')
+  await query('CREATE INDEX IF NOT EXISTS idx_login_tokens_expires ON login_tokens(expires_at)')
+}
+
 async function runMigration() {
   console.log('🚀 Iniciando migración de base de datos...\n')
 
-  // 1. Verificar conexión
   console.log('1️⃣ Verificando conexión...')
   const connected = await testConnection()
   if (!connected) {
     console.error('❌ No se pudo conectar a la base de datos')
-    console.error('💡 Verifica las variables de entorno: DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD')
+    console.error('💡 Verifica DATABASE_URL o DB_HOST/DB_NAME/DB_USER/DB_PASSWORD')
     process.exit(1)
   }
 
-  // 2. Crear esquema
-  console.log('\n2️⃣ Creando esquema...')
-  try {
-    const schemaSQL = readFileSync(join(__dirname, 'schema.sql'), 'utf8')
-    await query(schemaSQL)
-    await query('ALTER TABLE vacation_requests ADD COLUMN IF NOT EXISTS backup_employee_id VARCHAR(50) REFERENCES users(id)')
-    console.log('✅ Esquema creado correctamente')
-  } catch (error) {
-    console.error('❌ Error creando esquema:', error.message)
-    process.exit(1)
-  }
+  console.log('\n2️⃣ Aplicando schema...')
+  const schemaSQL = readFileSync(join(__dirname, 'schema.sql'), 'utf8')
+  await query(schemaSQL)
+  await query('ALTER TABLE vacation_requests ADD COLUMN IF NOT EXISTS backup_employee_id VARCHAR(50) REFERENCES users(id)')
+  console.log('✅ Schema aplicado')
 
-  // 3. Insertar departamentos
-  console.log('\n3️⃣ Insertando departamentos...')
-  try {
-    for (const dept of DEPARTMENTS) {
-      await query(
-        `INSERT INTO departments (id, name, color, icon) 
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (id) DO NOTHING`,
-        [dept.id, dept.name, dept.color, dept.icon]
-      )
-    }
-    console.log(`✅ ${DEPARTMENTS.length} departamentos insertados`)
-  } catch (error) {
-    console.error('❌ Error insertando departamentos:', error.message)
-  }
+  console.log('\n3️⃣ Aplicando migraciones idempotentes...')
+  await applyOneShotMigrations()
+  console.log('✅ Migraciones aplicadas (passwords drop, tabla login_tokens, índices)')
 
-  // 4. Insertar usuarios
-  console.log('\n4️⃣ Insertando usuarios...')
-  try {
-    let inserted = 0
-    for (const user of USERS) {
-      const passwordHash = HASHED_CREDENTIALS[user.email.toLowerCase()] || null
-      
-      await query(
-        `INSERT INTO users (id, name, email, dept_id, role, start_date, password_hash) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         ON CONFLICT (id) DO UPDATE SET
-           name = EXCLUDED.name,
-           email = EXCLUDED.email,
-           dept_id = EXCLUDED.dept_id,
-           role = EXCLUDED.role,
-           start_date = EXCLUDED.start_date,
-           password_hash = COALESCE(EXCLUDED.password_hash, users.password_hash)`,
-        [
-          user.id,
-          user.name,
-          user.email,
-          user.deptId,
-          user.role,
-          user.startDate || null,
-          passwordHash,
-        ]
-      )
-      inserted++
-    }
-    console.log(`✅ ${inserted} usuarios insertados/actualizados`)
-  } catch (error) {
-    console.error('❌ Error insertando usuarios:', error.message)
+  console.log('\n4️⃣ Insertando departamentos...')
+  for (const dept of DEPARTMENTS) {
+    await query(
+      `INSERT INTO departments (id, name, color, icon)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (id) DO NOTHING`,
+      [dept.id, dept.name, dept.color, dept.icon]
+    )
   }
+  console.log(`✅ ${DEPARTMENTS.length} departamentos asegurados`)
 
-  // 5. Verificar datos
-  console.log('\n5️⃣ Verificando datos...')
-  try {
-    const deptCount = await query('SELECT COUNT(*) FROM departments')
-    const userCount = await query('SELECT COUNT(*) FROM users')
-    console.log(`✅ Departamentos: ${deptCount.rows[0].count}`)
-    console.log(`✅ Usuarios: ${userCount.rows[0].count}`)
-  } catch (error) {
-    console.error('❌ Error verificando datos:', error.message)
+  console.log('\n5️⃣ Insertando usuarios canónicos...')
+  let count = 0
+  for (const user of SEED_USERS) {
+    await query(
+      `INSERT INTO users (id, name, email, dept_id, role, start_date)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (id) DO UPDATE SET
+         name = EXCLUDED.name,
+         email = EXCLUDED.email,
+         dept_id = EXCLUDED.dept_id,
+         role = EXCLUDED.role,
+         start_date = EXCLUDED.start_date`,
+      [user.id, user.name, user.email.toLowerCase(), user.deptId, user.role, user.startDate || null]
+    )
+    count++
   }
+  console.log(`✅ ${count} usuarios sembrados`)
 
-  console.log('\n✅ Migración completada exitosamente!')
+  console.log('\n6️⃣ Verificación...')
+  const deptCount = await query('SELECT COUNT(*) FROM departments')
+  const userCount = await query('SELECT COUNT(*) FROM users')
+  const tokenCount = await query('SELECT COUNT(*) FROM login_tokens')
+  console.log(`   departments: ${deptCount.rows[0].count}`)
+  console.log(`   users: ${userCount.rows[0].count}`)
+  console.log(`   login_tokens: ${tokenCount.rows[0].count}`)
+
+  console.log('\n✅ Migración completada')
   process.exit(0)
 }
 

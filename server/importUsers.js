@@ -1,6 +1,5 @@
 import { readFile } from 'fs/promises'
 import crypto from 'crypto'
-import bcrypt from 'bcrypt'
 import { query, testConnection } from './database.js'
 
 const DEFAULT_PATH = 'data/users-template.csv'
@@ -80,20 +79,10 @@ function getField(data, ...keys) {
   return ''
 }
 
-async function upsertUser({
-  id,
-  name,
-  email,
-  deptId,
-  role,
-  startDate,
-  password,
-  dryRun,
-}) {
+async function upsertUser({ id, name, email, deptId, role, startDate, dryRun }) {
   const emailLower = email.toLowerCase()
   const validRole = role === 'admin' || role === 'employee' ? role : 'employee'
   const normalizedStartDate = startDate || null
-  const passwordHash = password ? await bcrypt.hash(password, 10) : null
 
   const existing = await query('SELECT id FROM users WHERE email = $1', [emailLower])
 
@@ -105,10 +94,9 @@ async function upsertUser({
              dept_id = $2,
              role = $3,
              start_date = $4,
-             password_hash = COALESCE($5, password_hash),
              updated_at = CURRENT_TIMESTAMP
-         WHERE email = $6`,
-        [name, deptId, validRole, normalizedStartDate, passwordHash, emailLower]
+         WHERE email = $5`,
+        [name, deptId, validRole, normalizedStartDate, emailLower]
       )
     }
     return { action: 'updated' }
@@ -117,9 +105,9 @@ async function upsertUser({
   const userId = id || crypto.randomUUID()
   if (!dryRun) {
     await query(
-      `INSERT INTO users (id, name, email, dept_id, role, start_date, password_hash)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [userId, name, emailLower, deptId, validRole, normalizedStartDate, passwordHash]
+      `INSERT INTO users (id, name, email, dept_id, role, start_date)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [userId, name, emailLower, deptId, validRole, normalizedStartDate]
     )
   }
 
@@ -166,7 +154,6 @@ async function importUsers() {
     const deptId = getField(rowData, 'deptid', 'dept_id')
     const role = getField(rowData, 'role') || 'employee'
     const startDate = getField(rowData, 'startdate', 'start_date')
-    const password = getField(rowData, 'password')
     const id = getField(rowData, 'id')
 
     if (!name || !email || !deptId) {
@@ -181,7 +168,6 @@ async function importUsers() {
       deptId,
       role,
       startDate,
-      password,
       dryRun,
     })
 

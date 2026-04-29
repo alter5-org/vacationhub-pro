@@ -9,6 +9,7 @@ import {
 import { useToast } from './ToastContext'
 import { useAuth } from './AuthContext'
 import { useEmployees } from './EmployeeContext'
+import { apiFetch } from '@/utils/apiClient'
 import type { VacationRequest } from '@/domain/types'
 
 export interface RequestContextValue {
@@ -54,11 +55,7 @@ export function RequestProvider({ children }: { children: ReactNode }) {
 
     Promise.all(
       yearsToLoad.map((year) =>
-        fetch(`/api/requests?year=${year}`, {
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-          },
-        }).then((response) => response.json())
+        apiFetch(`/api/requests?year=${year}`).then((response) => response.json())
       )
     )
       .then((responses) => {
@@ -87,12 +84,8 @@ export function RequestProvider({ children }: { children: ReactNode }) {
         throw new Error('Missing auth token')
       }
 
-      const response = await fetch('/api/requests', {
+      const response = await apiFetch('/api/requests', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${user.token}`,
-        },
         body: JSON.stringify(requestData),
       })
 
@@ -112,12 +105,8 @@ export function RequestProvider({ children }: { children: ReactNode }) {
       try {
         const employee = getEmployeeById(requestData.employeeId)
         if (employee) {
-          await fetch('/api/notifications/new-request', {
+          await apiFetch('/api/notifications/new-request', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${user.token}`,
-            },
             body: JSON.stringify({
               request: createdRequest,
               employee,
@@ -150,12 +139,8 @@ export function RequestProvider({ children }: { children: ReactNode }) {
       const request = requests.find(r => r.id === id)
       if (!request) return
 
-      const response = await fetch(`/api/requests/${id}`, {
+      const response = await apiFetch(`/api/requests/${id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${user.token}`,
-        },
         body: JSON.stringify({ status: 'approved' }),
       })
       const data = await response.json()
@@ -176,12 +161,8 @@ export function RequestProvider({ children }: { children: ReactNode }) {
       try {
         const employee = getEmployeeById(request.employeeId)
         if (employee) {
-          await fetch('/api/notifications/approved', {
+          await apiFetch('/api/notifications/approved', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${user.token}`,
-            },
             body: JSON.stringify({
               request: updatedRequest,
               employee,
@@ -206,12 +187,8 @@ export function RequestProvider({ children }: { children: ReactNode }) {
       const request = requests.find(r => r.id === id)
       if (!request) return
 
-      const response = await fetch(`/api/requests/${id}`, {
+      const response = await apiFetch(`/api/requests/${id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${user.token}`,
-        },
         body: JSON.stringify({ status: 'rejected', rejectionReason: reason }),
       })
       const data = await response.json()
@@ -233,12 +210,8 @@ export function RequestProvider({ children }: { children: ReactNode }) {
       try {
         const employee = getEmployeeById(request.employeeId)
         if (employee) {
-          await fetch('/api/notifications/rejected', {
+          await apiFetch('/api/notifications/rejected', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${user.token}`,
-            },
             body: JSON.stringify({
               request: updatedRequest,
               employee,
@@ -263,11 +236,8 @@ export function RequestProvider({ children }: { children: ReactNode }) {
         toast.error('Sesión inválida')
         return
       }
-      fetch(`/api/requests/${id}`, {
+      apiFetch(`/api/requests/${id}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${user.token}`,
-        },
       })
         .then((response) => response.json())
         .then((data) => {

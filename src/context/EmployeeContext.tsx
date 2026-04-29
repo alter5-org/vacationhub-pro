@@ -9,6 +9,7 @@ import {
 import { useToast } from './ToastContext'
 import { calculateProratedDays } from '@/utils/calculations'
 import { useAuth } from './AuthContext'
+import { apiFetch } from '@/utils/apiClient'
 import type { Employee } from '@/domain/types'
 
 interface EmployeeContextValue {
@@ -29,11 +30,7 @@ export function EmployeeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user?.token) return
-    fetch('/api/employees', {
-      headers: {
-        Authorization: `Bearer ${user.token}`,
-      },
-    })
+    apiFetch('/api/employees')
       .then((response) => response.json())
       .then((data) => {
         if (data?.success && Array.isArray(data.employees)) {
@@ -52,12 +49,8 @@ export function EmployeeProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      fetch('/api/employees', {
+      apiFetch('/api/employees', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${user.token}`,
-        },
         body: JSON.stringify(employeeData),
       })
         .then((response) => response.json())
@@ -87,12 +80,8 @@ export function EmployeeProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      fetch(`/api/employees/${id}`, {
+      apiFetch(`/api/employees/${id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${user.token}`,
-        },
         body: JSON.stringify(updates),
       })
         .then((response) => response.json())
@@ -120,11 +109,8 @@ export function EmployeeProvider({ children }: { children: ReactNode }) {
         return
       }
       const employee = employees.find((e) => e.id === id)
-      fetch(`/api/employees/${id}`, {
+      apiFetch(`/api/employees/${id}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${user.token}`,
-        },
       })
         .then((response) => response.json())
         .then((data) => {

@@ -60,7 +60,7 @@ export const getHolidaysInRange = (
 
   const holidays = getHolidaysByYear(year)
 
-  return holidays.filter((h) => {
+  return holidays.filter((h: { date: string }) => {
     const holidayDate = parseISO(h.date)
     return holidayDate >= start && holidayDate <= end
   })

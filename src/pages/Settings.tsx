@@ -1,18 +1,17 @@
 import { useAuth } from '@/context/AuthContext'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
-import { POLICIES } from '@/data/absenceTypes'
-import ChangePasswordForm from '@/components/features/ChangePasswordForm'
 
 export default function SettingsPage() {
   const { user } = useAuth()
+
+  if (!user) return null
 
   return (
     <div className="space-y-6 animate-slide-down">
       <h2 className="text-2xl font-bold text-slate-800">Configuración</h2>
 
       <div className="grid md:grid-cols-2 gap-6">
-        {/* User info */}
         <Card>
           <CardHeader>
             <span className="flex items-center gap-2">ℹ️ Tu Información</span>
@@ -39,18 +38,17 @@ export default function SettingsPage() {
           </CardBody>
         </Card>
 
-        {/* Company policies removed by policy */}
+        <Card>
+          <CardHeader>
+            <span className="flex items-center gap-2">🔐 Acceso</span>
+          </CardHeader>
+          <CardBody className="space-y-3 text-sm text-slate-600">
+            <p>El acceso al portal se realiza mediante <strong>enlace de un solo uso</strong> enviado a tu email corporativo.</p>
+            <p>No hay contraseña que recordar ni cambiar. Cada vez que entres, solicita un nuevo enlace desde la pantalla de inicio de sesión.</p>
+            <p className="text-xs text-slate-500">Los enlaces caducan a los 15 minutos y solo pueden usarse una vez.</p>
+          </CardBody>
+        </Card>
       </div>
-
-      {/* Change Password */}
-      <Card>
-        <CardHeader>
-          <span className="flex items-center gap-2">🔒 Cambiar Contraseña</span>
-        </CardHeader>
-        <CardBody>
-          <ChangePasswordForm />
-        </CardBody>
-      </Card>
     </div>
   )
 }

@@ -38,7 +38,7 @@ Monolithic app: React frontend + Express 5 backend in one repo, deployed as a si
 
 - **Express 5**: Uses `/{*path}` for catch-all routes (not `*`). The `path-to-regexp` v8 syntax applies.
 - **DB queries**: Use the `query(text, params)` helper from `database.js`, not direct pool access.
-- **Auth flow**: JWT in Authorization header → `authenticateJWT` middleware → `req.user` has decoded payload.
+- **Auth flow (magic link)**: `POST /api/auth/request-link` → email with single-use token (15 min TTL, stored in `login_tokens`) → user opens link → `POST /api/auth/verify-link` consumes token atomically and returns an 8h JWT. Protected routes use `authenticateJWT` middleware → `req.user` has decoded payload. The session JWT is persisted in `localStorage` under key `vh_auth` so refreshes don't log the user out. There are no passwords anywhere.
 - **Frontend API calls**: In dev, Vite proxies `/api` to the backend. In production, Express serves both the API and the built `dist/` static files.
 
 ## Deployment
@@ -54,7 +54,7 @@ Intended: push to `main` on `alter5-org/vacationhub-pro` → Vercel auto-deploys
 Today (2026-04-20): the Vercel GitHub App in `alter5-org` has lost repo permissions, so Vercel does not auto-deploy. Until an org owner reinstalls the Vercel GitHub App, deploy the frontend manually with `cd <repo> && npx vercel --prod` (the project is already linked locally via `.vercel/`).
 
 ### Legacy / deprecated
-- AWS App Runner service (`5dedar3xke.eu-west-1.awsapprunner.com`) + Aurora + CloudFormation + ECR pipeline (`.github/workflows/deploy.yml`) are deprecated. App Runner is still alive but cannot reach a working DB, so login fails with 503. Do not restore DNS to App Runner. Pending: decommission the AWS stack.
+- AWS App Runner service (`5dedar3xke.eu-west-1.awsapprunner.com`) + Aurora + CloudFormation + ECR pipeline (`.github/workflows/deploy.yml`) are deprecated. App Runner is still alive but cannot reach a working DB, so `/api/auth/request-link` returns 503 there. Do not restore DNS to App Runner. Pending: decommission the AWS stack.
 
 ## Testing
 

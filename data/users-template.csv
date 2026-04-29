@@ -1,12 +1,11 @@
-id,name,email,deptId,role,startDate,password
-,Leandro Pili,leandro.pili@alter-5.com,tech,employee,2025-01-01,
-,Aaron Rodilla,aaron.rodilla@alter-5.com,tech,employee,2025-10-15,
-,Lautaro Laserna,lautaro.laserna@alter-5.com,tech,employee,2025-01-01,
-,Salvador Carrillo,salvador.carrillo@alter-5.com,sales,admin,2025-01-01,
-,Juan Ruiz Arnal,juan.ruiz.arnal@alter-5.com,tech,employee,2025-10-13,
-,Carlos Almodovar,carlos.almodovar@alter-5.com,sales,employee,2025-11-03,
-,Javier Ruiz Balado,javier.ruiz@alter-5.com,sales,employee,2025-01-01,
-,Miguel Solana,miguel.solana@alter-5.com,capital,admin,2025-01-01,
-,Rafael Nevado,rafael.nevado@alter-5.com,capital,employee,2025-01-01,
-,Gonzalo de Gracia,gonzalo.degracia@alter-5.com,capital,employee,2025-07-01,
-,Sabrina Zanzi,sabrina.zanzi@alter5.com,tech,employee,,
+id,name,email,deptId,role,startDate
+,Leandro Pili,leandro.pili@alter-5.com,tech,employee,2025-01-01
+,Aaron Rodilla,aaron.rodilla@alter-5.com,tech,employee,2025-10-15
+,Lautaro Laserna,lautaro.laserna@alter-5.com,tech,employee,2025-01-01
+,Salvador Carrillo,salvador.carrillo@alter-5.com,sales,admin,2025-01-01
+,Carlos Almodovar,carlos.almodovar@alter-5.com,sales,employee,2025-11-03
+,Javier Ruiz Balado,javier.ruiz@alter-5.com,sales,employee,2025-01-01
+,Miguel Solana,miguel.solana@alter-5.com,capital,admin,2025-01-01
+,Rafael Nevado,rafael.nevado@alter-5.com,capital,employee,2025-01-01
+,Gonzalo de Gracia,gonzalo.degracia@alter-5.com,capital,employee,2025-07-01
+,Sabrina Zanzi,sabrina.zanzi@alter5.com,tech,employee,

@@ -1,4 +1,4 @@
-import { POLICIES } from '@/data/absenceTypes'
+import { POLICIES, doesAbsenceDeduct } from '@/data/absenceTypes'
 import { getDaysUntil } from './dateUtils'
 import { parseISO, startOfYear, endOfYear } from 'date-fns'
 import type {
@@ -67,11 +67,13 @@ const calculateCarryOver = (
     (r) => r.employeeId === employeeId && getRequestYear(r) === previousYear
   )
 
-  const prevUsed = previousYearRequests
+  const deducting = previousYearRequests.filter((r) => doesAbsenceDeduct(r.type))
+
+  const prevUsed = deducting
     .filter((r) => r.status === 'approved')
     .reduce((sum, r) => sum + r.days, 0)
 
-  const prevPending = previousYearRequests
+  const prevPending = deducting
     .filter((r) => r.status === 'pending')
     .reduce((sum, r) => sum + r.days, 0)
 
@@ -92,12 +94,13 @@ export const calculateBalance = (
   const employeeRequests = requests.filter(
     (r) => r.employeeId === employeeId && getRequestYear(r) === year
   )
+  const deducting = employeeRequests.filter((r) => doesAbsenceDeduct(r.type))
 
-  const used = employeeRequests
+  const used = deducting
     .filter((r) => r.status === 'approved')
     .reduce((sum, r) => sum + r.days, 0)
 
-  const pending = employeeRequests
+  const pending = deducting
     .filter((r) => r.status === 'pending')
     .reduce((sum, r) => sum + r.days, 0)
 
@@ -219,22 +222,19 @@ export const getDepartmentStats = (
     return sum + calculateBalance(emp.id, year, requests, emp.startDate).total
   }, 0)
 
-  const usedDays = requests
-    .filter(
-      (r) =>
-        r.year === year &&
-        r.status === 'approved' &&
-        employees.some((e) => e.id === r.employeeId)
-    )
+  const deductingInDept = requests.filter(
+    (r) =>
+      r.year === year &&
+      doesAbsenceDeduct(r.type) &&
+      employees.some((e) => e.id === r.employeeId)
+  )
+
+  const usedDays = deductingInDept
+    .filter((r) => r.status === 'approved')
     .reduce((sum, r) => sum + r.days, 0)
 
-  const pendingDays = requests
-    .filter(
-      (r) =>
-        r.year === year &&
-        r.status === 'pending' &&
-        employees.some((e) => e.id === r.employeeId)
-    )
+  const pendingDays = deductingInDept
+    .filter((r) => r.status === 'pending')
     .reduce((sum, r) => sum + r.days, 0)
 
   return {

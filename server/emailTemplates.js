@@ -2,6 +2,19 @@
  * Plantillas de email para notificaciones de vacaciones
  */
 
+const HTML_ESCAPE_MAP = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+}
+
+function escapeHtml(value) {
+  if (value === null || value === undefined) return ''
+  return String(value).replace(/[&<>"']/g, (ch) => HTML_ESCAPE_MAP[ch])
+}
+
 export function getNewRequestEmailTemplate({ employeeName, startDate, endDate, days, reason, requestId }) {
   const subject = `Nueva solicitud de vacaciones - ${employeeName}`
   
@@ -280,10 +293,12 @@ Si tienes alguna pregunta, por favor contacta con ${reviewerName}.
 }
 
 
-export function getPasswordResetEmailTemplate({ employeeName, resetLink }) {
-  const subject = `Restablecer tu contraseña`
+export function getMagicLinkEmailTemplate({ employeeName, loginLink }) {
+  const subject = `Tu enlace de acceso a Alter5 Vacaciones`
   const appUrl = process.env.APP_URL || 'http://localhost:5173'
   const logoUrl = `${appUrl}/brand/alter5-wordmark.png`
+  const safeName = escapeHtml(employeeName)
+  const safeLink = escapeHtml(loginLink)
 
   const html = `
     <!DOCTYPE html>
@@ -317,15 +332,15 @@ export function getPasswordResetEmailTemplate({ employeeName, resetLink }) {
             <img src="${logoUrl}" alt="Alter5">
           </div>
           <div class="content">
-            <h1>Restablecer contraseña</h1>
-            <p>Hola ${employeeName},</p>
-            <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en el portal de vacaciones de Alter5.</p>
+            <h1>Tu enlace de acceso</h1>
+            <p>Hola ${safeName},</p>
+            <p>Pulsa el botón para acceder al portal de vacaciones de Alter5. No necesitas contraseña.</p>
             <div class="button-row">
-              <a href="${resetLink}" class="button">Restablecer contraseña</a>
-              <p class="link-fallback">Si el botón no funciona, copia este enlace en tu navegador:<br>${resetLink}</p>
+              <a href="${safeLink}" class="button">Acceder a Vacaciones</a>
+              <p class="link-fallback">Si el botón no funciona, copia este enlace en tu navegador:<br>${safeLink}</p>
             </div>
             <hr class="divider">
-            <p class="meta">Este enlace caduca en <strong>1 hora</strong>. Si no has solicitado este cambio, puedes ignorar este correo — tu contraseña actual seguirá siendo válida.</p>
+            <p class="meta">Este enlace caduca en <strong>15 minutos</strong> y solo puede usarse una vez. Si no lo has solicitado tú, puedes ignorar este correo.</p>
           </div>
           <div class="footer">
             <p>Alter5 &middot; Portal de Vacaciones</p>
@@ -341,12 +356,10 @@ export function getPasswordResetEmailTemplate({ employeeName, resetLink }) {
 
 Hola ${employeeName},
 
-Hemos recibido una solicitud para restablecer la contraseña de tu cuenta.
+Pulsa el siguiente enlace para acceder. No necesitas contraseña:
+${loginLink}
 
-Abre el siguiente enlace para establecer una nueva contraseña:
-${resetLink}
-
-Este enlace caduca en 1 hora. Si no has solicitado este cambio, puedes ignorar este correo; tu contraseña actual seguirá siendo válida.
+Este enlace caduca en 15 minutos y solo puede usarse una vez. Si no lo has solicitado tú, puedes ignorar este correo.
 
 —
 Alter5

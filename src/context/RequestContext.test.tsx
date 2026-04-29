@@ -94,7 +94,7 @@ describe('RequestContext', () => {
         }),
       })
     })
-    global.fetch = fetchMock
+    global.fetch = fetchMock as unknown as typeof fetch
 
     const { result } = renderHook(() => useRequests(), { wrapper })
 

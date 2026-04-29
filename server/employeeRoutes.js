@@ -1,5 +1,5 @@
 import express from 'express'
-import bcrypt from 'bcrypt'
+import crypto from 'crypto'
 import { authenticateJWT } from './authMiddleware.js'
 import * as userRepo from './userRepository.js'
 
@@ -24,21 +24,19 @@ employeeRouter.get('/employees', authenticateJWT, async (_req, res) => {
 
 employeeRouter.post('/employees', authenticateJWT, requireAdmin, async (req, res) => {
   try {
-    const { name, email, deptId, role, startDate, password } = req.body || {}
+    const { id, name, email, deptId, role, startDate } = req.body || {}
 
     if (!name || !email || !deptId) {
       return res.status(400).json({ success: false, error: 'Nombre, email y departamento requeridos' })
     }
 
-    const passwordHash = password ? await bcrypt.hash(password, 10) : null
-
     const user = await userRepo.createUser({
+      id: id || crypto.randomUUID(),
       name,
       email,
       deptId,
       role,
       startDate,
-      passwordHash,
     })
 
     return res.json({ success: true, employee: user })
@@ -51,14 +49,7 @@ employeeRouter.post('/employees', authenticateJWT, requireAdmin, async (req, res
 employeeRouter.patch('/employees/:id', authenticateJWT, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params
-    const updates = req.body || {}
-
-    if (updates.password) {
-      updates.passwordHash = await bcrypt.hash(updates.password, 10)
-      delete updates.password
-    }
-
-    const employee = await userRepo.updateUser(id, updates)
+    const employee = await userRepo.updateUser(id, req.body || {})
     if (!employee) {
       return res.status(404).json({ success: false, error: 'Empleado no encontrado' })
     }

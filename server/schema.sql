@@ -22,7 +22,6 @@ CREATE TABLE IF NOT EXISTS users (
   dept_id VARCHAR(50) NOT NULL REFERENCES departments(id),
   role VARCHAR(20) NOT NULL DEFAULT 'employee' CHECK (role IN ('employee', 'admin')),
   start_date DATE,
-  password_hash VARCHAR(255), -- Contraseña hasheada con bcrypt
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -46,13 +45,14 @@ CREATE TABLE IF NOT EXISTS vacation_requests (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabla de tokens de reset de contraseña
-CREATE TABLE IF NOT EXISTS password_reset_tokens (
+-- Tabla de tokens de magic-link login (un solo uso, 15 min)
+CREATE TABLE IF NOT EXISTS login_tokens (
   id SERIAL PRIMARY KEY,
   email VARCHAR(255) NOT NULL,
   token VARCHAR(255) UNIQUE NOT NULL,
   expires_at TIMESTAMP NOT NULL,
   used BOOLEAN DEFAULT FALSE,
+  used_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -75,9 +75,9 @@ CREATE INDEX IF NOT EXISTS idx_users_dept ON users(dept_id);
 CREATE INDEX IF NOT EXISTS idx_requests_employee ON vacation_requests(employee_id);
 CREATE INDEX IF NOT EXISTS idx_requests_status ON vacation_requests(status);
 CREATE INDEX IF NOT EXISTS idx_requests_dates ON vacation_requests(start_date, end_date);
-CREATE INDEX IF NOT EXISTS idx_reset_tokens_email ON password_reset_tokens(email);
-CREATE INDEX IF NOT EXISTS idx_reset_tokens_token ON password_reset_tokens(token);
-CREATE INDEX IF NOT EXISTS idx_reset_tokens_expires ON password_reset_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_login_tokens_email ON login_tokens(email);
+CREATE INDEX IF NOT EXISTS idx_login_tokens_token ON login_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_login_tokens_expires ON login_tokens(expires_at);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at);
 

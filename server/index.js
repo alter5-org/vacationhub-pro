@@ -41,28 +41,28 @@ app.use('/api/notifications', notificationRouter)
 
 // Verificar conexión de base de datos al iniciar
 testConnection().then(async (connected) => {
-  if (connected) {
-    console.log('✅ Database connection verified')
-    try {
-      const seedCheck = await query(
-        `SELECT COUNT(*)::int as count
-         FROM vacation_requests
-         WHERE reason = 'Vacaciones disfrutadas'
-           AND (EXTRACT(YEAR FROM start_date) = 2025 OR EXTRACT(YEAR FROM end_date) = 2025)`
-      )
-      if ((seedCheck.rows[0]?.count || 0) === 0) {
-        console.log('⚠️ Vacaciones históricas 2025 no encontradas, precargando...')
-        const result = await seedVacations()
-        console.log(`✅ Precarga completada: ${result.created} creadas, ${result.skipped} omitidas`)
-      }
-    } catch (error) {
-      console.error('Error comprobando precarga histórica:', error)
+  if (!connected) {
+    console.log('⚠️ Database unavailable — auth endpoints responderán 503 hasta que vuelva')
+    return
+  }
+  console.log('✅ Database connection verified')
+  try {
+    const seedCheck = await query(
+      `SELECT COUNT(*)::int as count
+       FROM vacation_requests
+       WHERE reason = 'Vacaciones disfrutadas'
+         AND (EXTRACT(YEAR FROM start_date) = 2025 OR EXTRACT(YEAR FROM end_date) = 2025)`
+    )
+    if ((seedCheck.rows[0]?.count || 0) === 0) {
+      console.log('⚠️ Vacaciones históricas 2025 no encontradas, precargando...')
+      const result = await seedVacations()
+      console.log(`✅ Precarga completada: ${result.created} creadas, ${result.skipped} omitidas`)
     }
-  } else {
-    console.log('⚠️ Database not available, using in-memory data')
+  } catch (error) {
+    console.error('Error comprobando precarga histórica:', error)
   }
 }).catch(() => {
-  console.log('⚠️ Database not available, using in-memory data')
+  console.log('⚠️ Database unavailable — auth endpoints responderán 503 hasta que vuelva')
 })
 
 // Verificar conexión de email al iniciar
