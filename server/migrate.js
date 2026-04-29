@@ -49,28 +49,32 @@ async function applyOneShotMigrations() {
   await query('CREATE INDEX IF NOT EXISTS idx_login_tokens_expires ON login_tokens(expires_at)')
 }
 
-async function runMigration() {
-  console.log('🚀 Iniciando migración de base de datos...\n')
+/**
+ * Ejecuta el pipeline completo de migración (idempotente y safe-on-boot).
+ * Devuelve true si la BD quedó migrada; lanza excepción si algo falló.
+ */
+export async function runMigrations({ silent = false } = {}) {
+  const log = silent ? () => {} : (...args) => console.log(...args)
 
-  console.log('1️⃣ Verificando conexión...')
+  log('🚀 Iniciando migración de base de datos...\n')
+
+  log('1️⃣ Verificando conexión...')
   const connected = await testConnection()
   if (!connected) {
-    console.error('❌ No se pudo conectar a la base de datos')
-    console.error('💡 Verifica DATABASE_URL o DB_HOST/DB_NAME/DB_USER/DB_PASSWORD')
-    process.exit(1)
+    throw new Error('No se pudo conectar a la base de datos (DATABASE_URL o DB_*)')
   }
 
-  console.log('\n2️⃣ Aplicando schema...')
+  log('\n2️⃣ Aplicando schema...')
   const schemaSQL = readFileSync(join(__dirname, 'schema.sql'), 'utf8')
   await query(schemaSQL)
   await query('ALTER TABLE vacation_requests ADD COLUMN IF NOT EXISTS backup_employee_id VARCHAR(50) REFERENCES users(id)')
-  console.log('✅ Schema aplicado')
+  log('✅ Schema aplicado')
 
-  console.log('\n3️⃣ Aplicando migraciones idempotentes...')
+  log('\n3️⃣ Aplicando migraciones idempotentes...')
   await applyOneShotMigrations()
-  console.log('✅ Migraciones aplicadas (passwords drop, tabla login_tokens, índices)')
+  log('✅ Migraciones aplicadas (passwords drop, tabla login_tokens, índices)')
 
-  console.log('\n4️⃣ Insertando departamentos...')
+  log('\n4️⃣ Insertando departamentos...')
   for (const dept of DEPARTMENTS) {
     await query(
       `INSERT INTO departments (id, name, color, icon)
@@ -79,9 +83,9 @@ async function runMigration() {
       [dept.id, dept.name, dept.color, dept.icon]
     )
   }
-  console.log(`✅ ${DEPARTMENTS.length} departamentos asegurados`)
+  log(`✅ ${DEPARTMENTS.length} departamentos asegurados`)
 
-  console.log('\n5️⃣ Insertando usuarios canónicos...')
+  log('\n5️⃣ Insertando usuarios canónicos...')
   let count = 0
   for (const user of SEED_USERS) {
     await query(
@@ -97,21 +101,32 @@ async function runMigration() {
     )
     count++
   }
-  console.log(`✅ ${count} usuarios sembrados`)
+  log(`✅ ${count} usuarios sembrados`)
 
-  console.log('\n6️⃣ Verificación...')
+  log('\n6️⃣ Verificación...')
   const deptCount = await query('SELECT COUNT(*) FROM departments')
   const userCount = await query('SELECT COUNT(*) FROM users')
   const tokenCount = await query('SELECT COUNT(*) FROM login_tokens')
-  console.log(`   departments: ${deptCount.rows[0].count}`)
-  console.log(`   users: ${userCount.rows[0].count}`)
-  console.log(`   login_tokens: ${tokenCount.rows[0].count}`)
+  log(`   departments: ${deptCount.rows[0].count}`)
+  log(`   users: ${userCount.rows[0].count}`)
+  log(`   login_tokens: ${tokenCount.rows[0].count}`)
 
-  console.log('\n✅ Migración completada')
-  process.exit(0)
+  log('\n✅ Migración completada')
+
+  return {
+    departments: Number(deptCount.rows[0].count),
+    users: Number(userCount.rows[0].count),
+    loginTokens: Number(tokenCount.rows[0].count),
+  }
 }
 
-runMigration().catch((error) => {
-  console.error('❌ Error fatal en migración:', error)
-  process.exit(1)
-})
+// CLI entrypoint: solo si este archivo se ejecuta directamente.
+const isCli = import.meta.url === `file://${process.argv[1]}`
+if (isCli) {
+  runMigrations()
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error('❌ Error fatal en migración:', error)
+      process.exit(1)
+    })
+}

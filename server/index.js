@@ -11,6 +11,7 @@ import { verifyEmailConnection } from './emailService.js'
 import { startReminderScheduler } from './reminderScheduler.js'
 import { testConnection, query } from './database.js'
 import { seedVacations } from './seedVacations.js'
+import { runMigrations } from './migrate.js'
 
 const app = express()
 app.set('trust proxy', 1)
@@ -39,13 +40,22 @@ app.use('/api', requestRouter)
 app.use('/api/reports', reportRouter)
 app.use('/api/notifications', notificationRouter)
 
-// Verificar conexión de base de datos al iniciar
+// Verificar conexión de base de datos al iniciar + correr migraciones idempotentes.
 testConnection().then(async (connected) => {
   if (!connected) {
     console.log('⚠️ Database unavailable — auth endpoints responderán 503 hasta que vuelva')
     return
   }
   console.log('✅ Database connection verified')
+
+  try {
+    const result = await runMigrations({ silent: true })
+    console.log(`✅ Schema sincronizado (departments=${result.departments}, users=${result.users}, login_tokens=${result.loginTokens})`)
+  } catch (error) {
+    console.error('❌ Migración al arranque falló:', error)
+    process.exit(1)
+  }
+
   try {
     const seedCheck = await query(
       `SELECT COUNT(*)::int as count
