@@ -90,12 +90,15 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Triggers para updated_at
+-- Triggers para updated_at (idempotent vía DROP IF EXISTS + CREATE)
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_requests_updated_at ON vacation_requests;
 CREATE TRIGGER update_requests_updated_at BEFORE UPDATE ON vacation_requests
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_departments_updated_at ON departments;
 CREATE TRIGGER update_departments_updated_at BEFORE UPDATE ON departments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
